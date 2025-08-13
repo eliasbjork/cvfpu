@@ -1,4 +1,3 @@
-cd /home/va6053un/git/cvfpu
 verilator --binary --timing --clk clk --timescale-override 1ns/1ps --relative-includes --trace\
   -Wno-UNUSEDSIGNAL \
   -Wno-UNUSEDPARAM \
