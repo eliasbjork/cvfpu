@@ -1,3 +1,5 @@
 *~
 html
 Bender.lock
+obj_dir
+*.vcd
