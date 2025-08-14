@@ -7,35 +7,6 @@ module fpnew_tb;
   // Parameters
   parameter int unsigned WIDTH = 32;
 
-  // Clock and reset
-  logic clk;
-  logic rst_ni;
-
-  // Input signals
-  logic [WIDTH-1:0] operand_0, operand_1, operand_2;
-  logic [2:0][WIDTH-1:0] operands_i;
-  assign operands_i = { operand_2, operand_1, operand_0 };
-  roundmode_e rnd_mode_i;
-  operation_e op_i;
-  logic op_mod_i;
-  fp_format_e src_fmt_i;
-  fp_format_e dst_fmt_i;
-  int_format_e int_fmt_i;
-  logic vectorial_op_i;
-  logic [31:0] tag_i;
-  logic simd_mask_i;
-  logic in_valid_i;
-  logic flush_i;
-  logic out_ready_i;
-
-  // Output signals
-  logic [WIDTH-1:0] result_o;
-  status_t status_o;
-  logic [31:0] tag_o;
-  logic in_ready_o;
-  logic out_valid_o;
-  logic busy_o;
-
   // from CVA6
   localparam int unsigned LAT_COMP_FP32     = 'd2;
   localparam int unsigned LAT_COMP_FP64     = 'd3;
@@ -75,11 +46,42 @@ module fpnew_tb;
       PipeConfig: DISTRIBUTED
   };
 
+  typedef logic[31:0] tag_t;
+
+  // Clock and reset
+  logic clk;
+  logic rst_ni;
+
+  // Input signals
+  logic [WIDTH-1:0] operand_0, operand_1, operand_2;
+  logic [2:0][WIDTH-1:0] operands_i;
+  assign operands_i = { operand_2, operand_1, operand_0 };
+  roundmode_e rnd_mode_i;
+  operation_e op_i;
+  logic op_mod_i;
+  fp_format_e src_fmt_i;
+  fp_format_e dst_fmt_i;
+  int_format_e int_fmt_i;
+  logic vectorial_op_i;
+  tag_t tag_i;
+  logic simd_mask_i;
+  logic in_valid_i;
+  logic flush_i;
+  logic out_ready_i;
+
+  // Output signals
+  logic [WIDTH-1:0] result_o;
+  status_t status_o;
+  tag_t tag_o;
+  logic in_ready_o;
+  logic out_valid_o;
+  logic busy_o;
+
   // Instantiate DUT
   fpnew_top #(
       .Features(RV32F),
       .Implementation(CUSTOM_SNITCH),
-      .TagType(logic[31:0])
+      .TagType(tag_t)
   ) dut (
       .clk_i(clk),
       .rst_ni(rst_ni),
@@ -112,6 +114,10 @@ module fpnew_tb;
 
   integer test_count = 0;
   integer fail_count = 0;
+
+  // tags for pipeline testing
+  tag_t tag_0;
+  tag_t tag_1;
 
   // Test sequence
   initial begin
@@ -146,7 +152,7 @@ module fpnew_tb;
     // ADD: a*b + c with a forced to +1.0 => effectively b + c (use operands[1] and [2])
     test_count++;
     op_i = ADD; op_mod_i = 0; rnd_mode_i = RNE; src_fmt_i = FP32; dst_fmt_i = FP32;
-    tag_i = 1;
+    tag_i++;
     operand_0 = '0;
     operand_1 = 32'h3F800000; // b = 1.0 (FP32)
     operand_2 = 32'h40000000; // c = 2.0 (FP32)
@@ -677,6 +683,74 @@ module fpnew_tb;
       if(!pass) fail_count++;
       $display("[I2F I32->32] %h (exp=%h) %s", result_o, exp, pass ? "PASS" : "FAIL");
     end
+
+    // next test
+    @(posedge clk); #9;
+
+    // pipelined execution
+    test_count += 2;
+
+    // setup input signals for ADD
+    tag_i++;
+    tag_0 = tag_i;
+    op_i = ADD; op_mod_i = 0; rnd_mode_i = RNE; src_fmt_i = FP32; dst_fmt_i = FP32;
+    operand_0 = '0;
+    operand_1 = 32'h3F800000; // b = 1.0 (FP32)
+    operand_2 = 32'h40000000; // c = 2.0 (FP32)
+    in_valid_i = 1;
+
+    // input handshake for ADD
+    wait (in_ready_o); @(posedge clk); #1 in_valid_i = 0;
+
+    #8;
+    // setup input signals for MUL
+    tag_i++;
+    tag_1 = tag_i;
+    op_i = MUL; op_mod_i = 0; rnd_mode_i = RNE;
+    operand_0 = 32'h40400000; // a = 3.0 (FP32)
+    operand_1 = 32'h40000000; // b = 2.0 (FP32)
+    in_valid_i = 1;
+
+    out_ready_i = 1;
+
+    // await result for ADD and do input handshake for MUL
+    wait (out_valid_o && tag_o==tag_0 && in_ready_o);
+
+    #1; // let signals stabilize
+
+    // input handshake for MUL is complete
+    in_valid_i = 0;
+    out_ready_i = 0;
+
+    // check result for ADD
+    begin
+      // expect 1.0 + 2.0 = 3.0
+      logic [WIDTH-1:0] exp = 32'h40400000; // 3.0 (FP32)
+      bit pass = (result_o === exp);
+      if(!pass) fail_count++;
+      $display("[PIPE ADD] 1.0 + 2.0 => %h (exp=%h) %s", result_o, exp, pass ? "PASS" : "FAIL");
+    end
+
+    #8 out_ready_i = 1;
+
+
+    // await result for MUL
+    wait (out_valid_o && tag_o==tag_1);
+    #1; // let signals stabilize
+
+    out_ready_i = 0;
+
+    // check result for MUL
+    begin
+      // expect 3.0 * 2.0 = 6.0
+      logic [WIDTH-1:0] exp = 32'h40C00000; // 6.0 (FP32)
+      bit pass = (result_o === exp);
+      if(!pass) fail_count++;
+      $display("[PIPE MUL] 3.0 * 2.0 => %h (exp=%h) %s", result_o, exp, pass ? "PASS" : "FAIL");
+    end
+
+    // reset
+    @(posedge clk); rst_ni = 0;
 
     #100;
     $display("[SUMMARY] %0d/%0d tests failed", fail_count, test_count);
