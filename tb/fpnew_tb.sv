@@ -138,7 +138,7 @@ module fpnew_tb;
     simd_mask_i = 1;
     in_valid_i = 0;
     flush_i = 0;
-    out_ready_i = 1;
+    out_ready_i = 0;
 
     // Reset
     #20 rst_ni = 1;
@@ -159,9 +159,11 @@ module fpnew_tb;
     in_valid_i = 1;
     // input handshake
     wait (in_ready_o); @(posedge clk); #1 in_valid_i = 0;
+    out_ready_i = 1;
     // await result for tag
     wait (out_valid_o && tag_o==tag_i);
     #1; // make check after signal has stabilized
+    out_ready_i = 0;
     begin
       logic [WIDTH-1:0] exp = 32'h40400000; // 3.0 (FP32)
       bit pass = (result_o === exp);
@@ -181,9 +183,11 @@ module fpnew_tb;
     in_valid_i = 1;
     // input handshake
     wait (in_ready_o); @(posedge clk); #1 in_valid_i = 0;
+    out_ready_i = 1;
     // await result for tag
     wait (out_valid_o && tag_o==tag_i);
     #1; // make check after signal has stabilized
+    out_ready_i = 0;
     begin
       // Expect 3.0 * 2.0 = 6.0
       logic [WIDTH-1:0] exp = 32'h40C00000; // 6.0 (FP32)
@@ -205,9 +209,11 @@ module fpnew_tb;
     in_valid_i = 1;
     // input handshake
     wait (in_ready_o); @(posedge clk); #1 in_valid_i = 0;
+    out_ready_i = 1;
     // await result for tag
     wait (out_valid_o && tag_o==tag_i);
     #1; // make check after signal has stabilized
+    out_ready_i = 0;
     begin
       logic [WIDTH-1:0] exp = 32'h41200000; // 3.0*2.0 + 4.0 = 10.0 (FP32)
       bit pass = (result_o === exp);
@@ -229,9 +235,11 @@ module fpnew_tb;
     in_valid_i = 1;
     // input handshake
     wait (in_ready_o); @(posedge clk); #1 in_valid_i = 0;
+    out_ready_i = 1;
     // await result for tag
     wait (out_valid_o && tag_o==tag_i);
     #1; // make check after signal has stabilized
+    out_ready_i = 0;
     begin
       // ADD with op_mod=1 subtracts c from b: result = b - c
       logic [WIDTH-1:0] exp = 32'h3F800000; // 1.0 (FP32)
@@ -253,9 +261,11 @@ module fpnew_tb;
     in_valid_i = 1;
     // input handshake
     wait (in_ready_o); @(posedge clk); #1 in_valid_i = 0;
+    out_ready_i = 1;
     // await result for tag
     wait (out_valid_o && tag_o==tag_i);
     #1; // make check after signal has stabilized
+    out_ready_i = 0;
     begin
       // ADDS: FMA path with a forced to +1.0: result = b + c
       logic [WIDTH-1:0] exp = 32'h40000000; // 2.0 (FP32)
@@ -277,9 +287,11 @@ module fpnew_tb;
     in_valid_i = 1;
     // input handshake
     wait (in_ready_o); @(posedge clk); #1 in_valid_i = 0;
+    out_ready_i = 1;
     // await result for tag
     wait (out_valid_o && tag_o==tag_i);
     #1; // make check after signal has stabilized
+    out_ready_i = 0;
     begin
       // FNMSUB: -(a*b) + c
       logic [WIDTH-1:0] exp = 32'hC0A00000; // -5.0 (FP32)
@@ -301,9 +313,11 @@ module fpnew_tb;
     in_valid_i = 1;
     // input handshake
     wait (in_ready_o); @(posedge clk); #1 in_valid_i = 0;
+    out_ready_i = 1;
     // await result for tag
     wait (out_valid_o && tag_o==tag_i);
     #1; // make check after signal has stabilized
+    out_ready_i = 0;
     begin
       // FNMADD: -(a*b) - c (via FNMSUB with op_mod=1)
       logic [WIDTH-1:0] exp = 32'hC0E00000; // -7.0 (FP32)
@@ -324,9 +338,11 @@ module fpnew_tb;
     in_valid_i = 1;
     // input handshake
     wait (in_ready_o); @(posedge clk); #1 in_valid_i = 0;
+    out_ready_i = 1;
     // await result for tag
     wait (out_valid_o && tag_o==tag_i);
     #1; // make check after signal has stabilized
+    out_ready_i = 0;
     begin
       // DIV: result = dividend / divisor
       logic [WIDTH-1:0] exp = 32'h40400000; // 3.0 (FP32)
@@ -346,9 +362,11 @@ module fpnew_tb;
     in_valid_i = 1;
     // input handshake
     wait (in_ready_o); @(posedge clk); #1 in_valid_i = 0;
+    out_ready_i = 1;
     // await result for tag
     wait (out_valid_o && tag_o==tag_i);
     #1; // make check after signal has stabilized
+    out_ready_i = 0;
     begin
       // SQRT: result = sqrt(operand)
       logic [WIDTH-1:0] exp = 32'h40000000; // 2.0 (FP32)
@@ -368,11 +386,13 @@ module fpnew_tb;
     operand_0 = 32'hBFC00000; // a = -1.5 (FP32)
     operand_1 = 32'h40000000; // b = +2.0 (FP32)
     in_valid_i = 1;
+    out_ready_i = 1; // must be ready for result same cycle
     // input handshake
     wait (in_ready_o); @(posedge clk); #1 in_valid_i = 0;
     // await result for tag
     wait (out_valid_o && tag_o==tag_i);
     #1; // make check after signal has stabilized
+    out_ready_i = 0;
     begin
       // SGNJ: copy sign of b to magnitude of a
       logic [WIDTH-1:0] exp = 32'h3FC00000; // +1.5 (FP32)
@@ -388,11 +408,13 @@ module fpnew_tb;
     tag_i++;
     rnd_mode_i = RTZ; // SGNJN (negate sign of b)
     in_valid_i = 1;
+    out_ready_i = 1; // must be ready for result same cycle
     // input handshake
     wait (in_ready_o); @(posedge clk); #1 in_valid_i = 0;
     // await result for tag
     wait (out_valid_o && tag_o==tag_i);
     #1; // make check after signal has stabilized
+    out_ready_i = 0;
     begin
       // SGNJN: negate sign of b, apply to magnitude of a
     logic [WIDTH-1:0] exp = 32'hBFC00000; // -1.5 (FP32)
@@ -410,11 +432,13 @@ module fpnew_tb;
     rnd_mode_i = RDN; // SGNJX (xor signs), use b negative to flip
     operand_1 = 32'hC0000000; // b = -2.0 (FP32)
     in_valid_i = 1;
+    out_ready_i = 1; // must be ready for result same cycle
     // input handshake
     wait (in_ready_o); @(posedge clk); #1 in_valid_i = 0;
     // await result for tag
     wait (out_valid_o && tag_o==tag_i);
     #1; // make check after signal has stabilized
+    out_ready_i = 0;
     begin
       // SGNJX: xor signs of a and b, apply to magnitude of a
       logic [WIDTH-1:0] exp = 32'h3FC00000; // +1.5 (FP32)
@@ -433,11 +457,13 @@ module fpnew_tb;
     operand_0 = 32'h3F800000; // 1.0 (FP32)
     operand_1 = 32'hC0000000; // -2.0 (FP32)
     in_valid_i = 1;
+    out_ready_i = 1; // must be ready for result same cycle
     // input handshake
     wait (in_ready_o); @(posedge clk); #1 in_valid_i = 0;
     // await result for tag
     wait (out_valid_o && tag_o==tag_i);
     #1; // make check after signal has stabilized
+    out_ready_i = 0;
     begin
       // MINMAX with RNE selects MIN
       logic [WIDTH-1:0] exp = 32'hC0000000; // -2.0 (FP32)
@@ -453,11 +479,13 @@ module fpnew_tb;
     tag_i++;
     rnd_mode_i = RTZ; // MAX
     in_valid_i = 1;
+    out_ready_i = 1; // must be ready for result same cycle
     // input handshake
     wait (in_ready_o); @(posedge clk); #1 in_valid_i = 0;
     // await result for tag
     wait (out_valid_o && tag_o==tag_i);
     #1; // make check after signal has stabilized
+    out_ready_i = 0;
     begin
       // MINMAX with RTZ selects MAX
     logic [WIDTH-1:0] exp = 32'h3F800000; // 1.0 (FP32)
@@ -476,11 +504,13 @@ module fpnew_tb;
     operand_0 = 32'h40000000; // 2.0 (FP32)
     operand_1 = 32'h40400000; // 3.0 (FP32)
     in_valid_i = 1;
+    out_ready_i = 1; // must be ready for result same cycle
     // input handshake
     wait (in_ready_o); @(posedge clk); #1 in_valid_i = 0;
     // await result for tag
     wait (out_valid_o && tag_o==tag_i);
     #1; // make check after signal has stabilized
+    out_ready_i = 0;
     begin
       // CMP with RNE implements LE (<=)
       bit got = result_o[0]; bit expb = 1'b1; bit pass = (got == expb);
@@ -497,11 +527,13 @@ module fpnew_tb;
     operand_0 = 32'h40400000; // 3.0 (FP32)
     operand_1 = 32'h40000000; // 2.0 (FP32)
     in_valid_i = 1;
+    out_ready_i = 1; // must be ready for result same cycle
     // input handshake
     wait (in_ready_o); @(posedge clk); #1 in_valid_i = 0;
     // await result for tag
     wait (out_valid_o && tag_o==tag_i);
     #1; // make check after signal has stabilized
+    out_ready_i = 0;
     begin
       // CMP with RTZ implements LT (<)
       bit got = result_o[0]; bit expb = 1'b0; bit pass = (got == expb);
@@ -518,11 +550,13 @@ module fpnew_tb;
     operand_0 = 32'h40400000; // 3.0 (FP32)
     operand_1 = 32'h40400000; // 3.0 (FP32)
     in_valid_i = 1;
+    out_ready_i = 1; // must be ready for result same cycle
     // input handshake
     wait (in_ready_o); @(posedge clk); #1 in_valid_i = 0;
     // await result for tag
     wait (out_valid_o && tag_o==tag_i);
     #1; // make check after signal has stabilized
+    out_ready_i = 0;
     begin
       // CMP with RDN implements EQ (==)
       bit got = result_o[0]; bit expb = 1'b1; bit pass = (got == expb);
@@ -539,11 +573,13 @@ module fpnew_tb;
     operand_0 = 32'h40400000; // 3.0 (FP32)
     operand_1 = 32'h40000000; // 2.0 (FP32)
     in_valid_i = 1;
+    out_ready_i = 1; // must be ready for result same cycle
     // input handshake
     wait (in_ready_o); @(posedge clk); #1 in_valid_i = 0;
     // await result for tag
     wait (out_valid_o && tag_o==tag_i);
     #1; // make check after signal has stabilized
+    out_ready_i = 0;
     begin
       // CMP with RDN + op_mod=1 implements NE (!=) by inverting EQ
       bit got = result_o[0]; bit expb = 1'b1; bit pass = (got == expb);
@@ -561,11 +597,13 @@ module fpnew_tb;
     op_i = CLASSIFY; rnd_mode_i = RNE;
     operand_0 = 32'h00000000; // +0.0 (FP32)
     in_valid_i = 1;
+    out_ready_i = 1; // must be ready for result same cycle
     // input handshake
     wait (in_ready_o); @(posedge clk); #1 in_valid_i = 0;
     // await result for tag
     wait (out_valid_o && tag_o==tag_i);
     #1; // make check after signal has stabilized
+    out_ready_i = 0;
     begin
       // CLASSIFY returns a bitmask of FP class; here we check the low bits of the mask
       logic [15:0] got = result_o[15:0]; logic [15:0] expm = 16'h0010;
@@ -582,11 +620,13 @@ module fpnew_tb;
     tag_i++;
     operand_0 = 32'h7F800000; // +inf (FP32)
     in_valid_i = 1;
+    out_ready_i = 1; // must be ready for result same cycle
     // input handshake
     wait (in_ready_o); @(posedge clk); #1 in_valid_i = 0;
     // await result for tag
     wait (out_valid_o && tag_o==tag_i);
     #1; // make check after signal has stabilized
+    out_ready_i = 0;
     begin
       logic [15:0] got = result_o[15:0]; logic [15:0] expm = 16'h0080;
       bit pass = (got === expm);
@@ -607,9 +647,11 @@ module fpnew_tb;
     in_valid_i = 1;
     // input handshake
     wait (in_ready_o); @(posedge clk); #1 in_valid_i = 0;
+    out_ready_i = 1;
     // await result for tag
     wait (out_valid_o && tag_o==tag_i);
     #1; // make check after signal has stabilized
+    out_ready_i = 0;
     begin
       // F2F: FP32 -> FP32 (identity cast)
       logic [WIDTH-1:0] exp = 32'h40600000; // 3.5 (FP32)
@@ -628,9 +670,11 @@ module fpnew_tb;
     in_valid_i = 1;
     // input handshake
     wait (in_ready_o); @(posedge clk); #1 in_valid_i = 0;
+    out_ready_i = 1;
     // await result for tag
     wait (out_valid_o && tag_o==tag_i);
     #1; // make check after signal has stabilized
+    out_ready_i = 0;
     begin
       // F2F: FP32 -> FP32 (identity cast)
       logic [WIDTH-1:0] exp = 32'h3FA00000; // 1.25 (FP32)
@@ -650,9 +694,11 @@ module fpnew_tb;
     in_valid_i = 1;
     // input handshake
     wait (in_ready_o); @(posedge clk); #1 in_valid_i = 0;
+    out_ready_i = 1;
     // await result for tag
     wait (out_valid_o && tag_o==tag_i);
     #1; // make check after signal has stabilized
+    out_ready_i = 0;
     begin
     // F2I: convert FP32 to signed INT32
       int signed got_i = $signed(result_o);
@@ -673,9 +719,11 @@ module fpnew_tb;
     in_valid_i = 1;
     // input handshake
     wait (in_ready_o); @(posedge clk); #1 in_valid_i = 0;
+    out_ready_i = 1;
     // await result for tag
     wait (out_valid_o && tag_o==tag_i);
     #1; // make check after signal has stabilized
+    out_ready_i = 0;
     begin
     // I2F: convert signed INT32 to FP32
       logic [WIDTH-1:0] exp = 32'hC0E00000; // -7.0 (FP32)
