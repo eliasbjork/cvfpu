@@ -1,4 +1,4 @@
-verilator --binary --timing --clk clk --timescale-override 1ns/1ps --relative-includes --trace\
+verilator --binary --timing --clk clk --timescale-override 1ns/1ps --relative-includes --trace --trace-structs\
   -Wno-UNUSEDSIGNAL \
   -Wno-UNUSEDPARAM \
   -Wno-PINCONNECTEMPTY \
