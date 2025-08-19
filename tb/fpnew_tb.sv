@@ -983,7 +983,7 @@ module fpnew_tb;
     // input handshake for ADD
     wait (in_ready_o);
     @(posedge clk);
-    #1 in_valid_i = 0;
+    in_valid_i = 0;
 
     #8;
     // setup input signals for MUL
