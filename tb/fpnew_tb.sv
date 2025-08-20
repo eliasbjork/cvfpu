@@ -963,76 +963,86 @@ module fpnew_tb;
 
     //Next test
     @(posedge clk);
-    #9;
+
     // pipelined execution
     test_count += 2;
+    fork
+      begin
+        // setup input signals for ADD
+        tag_i++;
+        tag_0 = tag_i;
+        op_i = ADD;
+        op_mod_i = 0;
+        rnd_mode_i = RNE;
+        src_fmt_i = FP32;
+        dst_fmt_i = FP32;
+        operands_i[0] = '0;
+        operands_i[1] = 32'h3F800000;  // b = 1.0 (FP32)
+        operands_i[2] = 32'h40000000;  // c = 2.0 (FP32)
+        in_valid_i = 1;
 
-    // setup input signals for ADD
-    tag_i++;
-    tag_0 = tag_i;
-    op_i = ADD;
-    op_mod_i = 0;
-    rnd_mode_i = RNE;
-    src_fmt_i = FP32;
-    dst_fmt_i = FP32;
-    operands_i[0] = '0;
-    operands_i[1] = 32'h3F800000;  // b = 1.0 (FP32)
-    operands_i[2] = 32'h40000000;  // c = 2.0 (FP32)
-    in_valid_i = 1;
-
-    // input handshake for ADD
-    wait (in_ready_o);
-    @(posedge clk);
-    in_valid_i = 0;
-
-    #8;
-    // setup input signals for MUL
-    tag_i++;
-    tag_1 = tag_i;
-    op_i = MUL;
-    op_mod_i = 0;
-    rnd_mode_i = RNE;
-    operands_i[0] = 32'h40400000;  // a = 3.0 (FP32)
-    operands_i[1] = 32'h40000000;  // b = 2.0 (FP32)
-    in_valid_i = 1;
-
-    out_ready_i = 1;
-
-    // await result for ADD and do input handshake for MUL
-    wait (out_valid_o && tag_o == tag_0 && in_ready_o);
-
-    #1;  // let signals stabilize
-
-    // input handshake for MUL is complete
-    in_valid_i  = 0;
-    out_ready_i = 0;
-
-    // check result for ADD
-    begin
-      // expect 1.0 + 2.0 = 3.0
-      logic [WIDTH-1:0] exp = 32'h40400000;  // 3.0 (FP32)
-      bit pass = (result_o === exp);
-      if (!pass) fail_count++;
-      $display("[PIPE ADD] 1.0 + 2.0 => %h (exp=%h) %s", result_o, exp, pass ? "PASS" : "FAIL");
-    end
-
-    #8 out_ready_i = 1;
+        // input handshake for ADD
+        wait (in_ready_o);
+        @(posedge clk);
 
 
-    // await result for MUL
-    wait (out_valid_o && tag_o == tag_1);
-    #1;  // let signals stabilize
+        // setup input signals for MUL
+        tag_i++;
+        tag_1 = tag_i;
+        op_i = MUL;
+        op_mod_i = 0;
+        rnd_mode_i = RNE;
+        operands_i[0] = 32'h40400000;  // a = 3.0 (FP32)
+        operands_i[1] = 32'h40000000;  // b = 2.0 (FP32)
+        in_valid_i = 1;
+
+        // input handshake for MUL
+        wait (in_ready_o);
+        @(posedge clk);
+        in_valid_i = 0;
+      end
+
+      begin
+        // await result for ADD and do input handshake for MUL
+        wait (out_valid_o && tag_o == tag_0);
+        out_ready_i = 1;
+        @(posedge clk);
 
 
-    // check result for MUL
-    begin
-      // expect 3.0 * 2.0 = 6.0
-      logic [WIDTH-1:0] exp = 32'h40C00000;  // 6.0 (FP32)
-      bit pass = (result_o === exp);
-      if (!pass) fail_count++;
-      $display("[PIPE MUL] 3.0 * 2.0 => %h (exp=%h) %s", result_o, exp, pass ? "PASS" : "FAIL");
-    end
 
+        // check result for ADD
+        begin
+          // expect 1.0 + 2.0 = 3.0
+          logic [WIDTH-1:0] exp = 32'h40400000;  // 3.0 (FP32)
+          bit pass = (result_o === exp);
+          if (!pass) fail_count++;
+          $display("[PIPE ADD] 1.0 + 2.0 => %h (exp=%h) %s", result_o, exp, pass ? "PASS" : "FAIL");
+        end
+
+        // input handshake for MUL is complete
+        //wait(!out_valid_o);
+        //out_ready_i = 0;
+
+
+        // await result for MUL
+        wait (out_valid_o && tag_o == tag_1);
+        out_ready_i = 1;
+        // let signals stabilize
+        @(posedge clk);
+
+
+        // check result for MUL
+        begin
+          // expect 3.0 * 2.0 = 6.0
+          logic [WIDTH-1:0] exp = 32'h40C00000;  // 6.0 (FP32)
+          bit pass = (result_o === exp);
+          if (!pass) fail_count++;
+          $display("[PIPE MUL] 3.0 * 2.0 => %h (exp=%h) %s", result_o, exp, pass ? "PASS" : "FAIL");
+        end
+        wait(!out_valid_o);
+        out_ready_i = 0;
+      end
+    join
     // reset
     @(posedge clk);
     rst_ni = 0;
